@@ -1,0 +1,46 @@
+FROM --platform=i386 i386/debian:bookworm
+ARG DEBIAN_FRONTEND=noninteractive
+RUN apt-get clean && apt-get update && apt-get -y upgrade
+
+# Install base packages from debian_mini
+RUN apt-get -y install apt-utils gcc \
+	python3 vim unzip ruby nodejs \
+	fakeroot dbus base whiptail hexedit \
+	patch wamerican ucf manpages \
+	file luajit make lua5.4 dialog curl \
+	less cowsay netcat-openbsd git
+
+# Install Node.js 22+ (required for OpenClaw)
+RUN curl -fsSL https://deb.nodesource.com/setup_22.x | bash - && \
+    apt-get install -y nodejs
+
+# Create user
+RUN useradd -m user && echo "user:password" | chpasswd
+
+# Install OpenClaw globally
+RUN npm install -g openclaw@latest
+
+# Copy examples
+COPY --chown=user:user ./examples /home/user/examples
+RUN chmod -R +x /home/user/examples/lua
+
+# Set up OpenClaw welcome message
+RUN echo '\n\n╔════════════════════════════════════════════════════════╗' >> /etc/motd && \
+    echo '║  🦞 WebVM + OpenClaw - AI Assistant Ready           ║' >> /etc/motd && \
+    echo '╠════════════════════════════════════════════════════════╣' >> /etc/motd && \
+    echo '║  OpenClaw is installed globally                       ║' >> /etc/motd && \
+    echo '║  Run: openclaw onboard --install-daemon              ║' >> /etc/motd && \
+    echo '║  Or:  openclaw agent --message "Hello"               ║' >> /etc/motd && \
+    echo '╚════════════════════════════════════════════════════════╝\n' >> /etc/motd
+
+# Set environment
+WORKDIR /home/user/
+ENV HOME="/home/user" TERM="xterm" USER="user" SHELL="/bin/bash" EDITOR="vim" LANG="en_US.UTF-8" LC_ALL="C"
+ENV PATH="/usr/local/bin:$PATH"
+
+RUN echo 'root:password' | chpasswd
+
+# Show motd on login
+RUN echo 'cat /etc/motd' >> /home/user/.bashrc
+
+CMD [ "/bin/bash" ]
